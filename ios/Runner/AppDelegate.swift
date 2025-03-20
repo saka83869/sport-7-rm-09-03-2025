@@ -1,6 +1,9 @@
 import Flutter
 import UIKit
 import SafariServices
+import Firebase
+import FirebaseMessaging
+import AudioToolbox
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
@@ -11,6 +14,8 @@ import SafariServices
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
     ) -> Bool {
+        FirebaseApp.configure()
+        registerForPushNotifications()
         GeneratedPluginRegistrant.register(with: self)
         let controller = window?.rootViewController as! FlutterViewController
         let methodChannel = FlutterMethodChannel(name: channelName, binaryMessenger: controller.binaryMessenger)
@@ -110,3 +115,91 @@ import SafariServices
     
     
 }
+
+extension AppDelegate {
+ 
+    override func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        if #available(iOS 14.0, *) {
+            printLog("sms receive: \(notification)")
+            completionHandler([.banner, .sound, .badge, .list, .alert])
+            vibrationDevice()
+        }
+    }
+    
+    private func vibrationDevice() {
+        AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
+    }
+    
+    override func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
+        let notification = response.notification
+        printLog("sms: \(notification)")
+    }
+    
+    override func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        
+        let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
+        printLog("APNS Token: \(tokenString)")
+        
+        Messaging.messaging().apnsToken = deviceToken
+        
+        Messaging.messaging().subscribe(toTopic: "ios7-rm-game2") { error in
+            if let rr = error {
+                printLog("FCM subscribe error: \(rr.localizedDescription)")
+            } else {
+                printLog("FCM subscribe success")
+            }
+        }
+    }
+    
+    override func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: any Error) {
+        printLog("Failed to register for remote notifications: \(error)")
+    }
+    
+    override func application(_ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable : Any], fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
+        printLog("TEST 01 SceneDelegate AppDelegate  [Notification] didReceiveRemoteNotification back: ")
+        switch  application.applicationState {
+        case .active:
+            printLog("TEST 01 SceneDelegate AppDelegate  [Notification] didReceiveRemoteNotification active: ")
+            
+            break
+        case .inactive:
+            printLog("TEST 01 SceneDelegate AppDelegate  [Notification] didReceiveRemoteNotification inactive: ")
+            break
+        case .background:
+            printLog("TEST 01 SceneDelegate AppDelegate  [Notification] didReceiveRemoteNotification background: ")
+            break
+        default:
+            break
+        }
+        completionHandler(UIBackgroundFetchResult.newData)
+    }
+    
+}
+
+// Nhận tin nhắn Firebase
+extension AppDelegate: MessagingDelegate {
+    func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
+        printLog("FCM Token: \(fcmToken ?? "")")
+    }
+    
+    func registerForPushNotifications() {
+        Messaging.messaging().delegate = self
+        UNUserNotificationCenter.current().delegate = self
+        let authOptions: UNAuthorizationOptions = [.alert, .badge, .sound]
+        UNUserNotificationCenter.current().requestAuthorization(options: authOptions) { granted, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    printLog("❌ Failed to request push notification permission: \(error.localizedDescription)")
+                } else {
+                    printLog(granted ? "✅ Push notifications authorized" : "❌ Push notifications denied")
+                }
+                UIApplication.shared.registerForRemoteNotifications()
+            }
+        }
+    }
+}
+
