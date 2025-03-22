@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:mathfun/splash_screen.dart';
 import 'core/theme/app_theme.dart';
 import 'core/utils/storage_service.dart';
 import 'core/utils/game_service.dart';
@@ -45,7 +46,7 @@ class MathFunApp extends StatelessWidget {
           title: 'Math Fun',
           theme: AppTheme.lightTheme,
           debugShowCheckedModeBanner: false,
-          home: const HomeScreen(),
+          home: const SplashScreen(),
         ),
       ),
     );

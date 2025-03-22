@@ -12,10 +12,6 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Math Fun'),
-        elevation: 0,
-      ),
       body: SafeArea(
         child: Column(
           children: [
