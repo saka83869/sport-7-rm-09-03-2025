@@ -171,7 +171,7 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
         width: double.infinity,
         height: double.infinity,
         child: Center(
-          child: Text("Math Fun",style: TextStyle(color: Color(0xFF303F9F),fontSize: 26,fontWeight: FontWeight.w900),),
+          child: Text("Math Fun",style: TextStyle(color: Color(0xFF303F9F),fontSize: 30,fontWeight: FontWeight.w900),),
         ),
         decoration: const BoxDecoration(
          color:  Colors.white,
