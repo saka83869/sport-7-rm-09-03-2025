@@ -17,10 +17,10 @@ class ProblemCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.all(16),
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: _getCardColor(),
           borderRadius: BorderRadius.circular(12),
@@ -42,10 +42,14 @@ class ProblemCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            Text(
-              problem.question,
-              style: Theme.of(context).textTheme.displayLarge,
-              textAlign: TextAlign.center,
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                problem.question,
+                style: Theme.of(context).textTheme.displayLarge,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+              ),
             ),
             if (showResult) ...[
               const SizedBox(height: 24),
@@ -61,19 +65,34 @@ class ProblemCard extends StatelessWidget {
     final resultText = isCorrect ? 'Correct!' : 'Incorrect!';
     final resultIcon = isCorrect ? Icons.check_circle : Icons.cancel;
     final resultColor = isCorrect ? Colors.green : Colors.red;
+    final answerText =
+        isCorrect ? '' : 'Correct answer: ${problem.correctAnswer}';
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+    return Column(
       children: [
-        Icon(resultIcon, color: resultColor, size: 28),
-        const SizedBox(width: 8),
-        Text(
-          resultText,
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            color: resultColor,
-            fontWeight: FontWeight.bold,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(resultIcon, color: resultColor, size: 28),
+            const SizedBox(width: 8),
+            Text(
+              resultText,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                color: resultColor,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
         ),
+        if (!isCorrect) ...[
+          const SizedBox(height: 8),
+          Text(
+            answerText,
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
+          ),
+        ],
       ],
     );
   }
@@ -84,4 +103,4 @@ class ProblemCard extends StatelessWidget {
         ? Colors.green.withOpacity(0.1)
         : Colors.red.withOpacity(0.1);
   }
-} 
+}

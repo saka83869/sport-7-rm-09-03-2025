@@ -24,11 +24,7 @@ class GameScreen extends StatefulWidget {
   final bool isDailyChallenge;
   final GameDifficulty? difficulty;
 
-  const GameScreen({
-    super.key, 
-    this.isDailyChallenge = false,
-    this.difficulty,
-  });
+  const GameScreen({super.key, this.isDailyChallenge = false, this.difficulty});
 
   @override
   State<GameScreen> createState() => _GameScreenState();
@@ -45,12 +41,12 @@ class _GameScreenState extends State<GameScreen> {
     super.initState();
     final gameService = GameService();
     final storageService = RepositoryProvider.of<StorageService>(context);
-    
+
     _gameBloc = GameBloc(
       gameService: gameService,
       storageService: storageService,
     );
-    
+
     // Start the game with the selected difficulty
     if (widget.difficulty != null) {
       _gameBloc.add(GameStarted(difficulty: widget.difficulty!));
@@ -80,7 +76,7 @@ class _GameScreenState extends State<GameScreen> {
                 builder: (context) => GameResultScreen(gameState: state),
               ),
             );
-            
+
             // Mark daily challenge as completed if applicable
             if (widget.isDailyChallenge) {
               final storageService = context.read<StorageService>();
@@ -101,31 +97,40 @@ class _GameScreenState extends State<GameScreen> {
               }
               return true;
             },
-            child: Scaffold(
-              appBar: AppBar(
-                title: Text(widget.isDailyChallenge ? 'Daily Challenge' : 'Math Fun'),
-                actions: [
-                  // Pause/Resume button
-                  if (state.status != GameStatus.completed)
-                    IconButton(
-                      icon: Icon(
-                        state.status == GameStatus.paused
-                            ? Icons.play_arrow
-                            : Icons.pause,
+            child: GestureDetector(
+              // Add gesture detector to dismiss keyboard when tapping outside
+              onTap: () => FocusScope.of(context).unfocus(),
+              child: Scaffold(
+                // Make the scaffold resizable when keyboard appears
+                resizeToAvoidBottomInset: true,
+                appBar: AppBar(
+                  title: Text(
+                    widget.isDailyChallenge ? 'Daily Challenge' : 'Math Fun',
+                  ),
+                  actions: [
+                    // Pause/Resume button
+                    if (state.status != GameStatus.completed)
+                      IconButton(
+                        icon: Icon(
+                          state.status == GameStatus.paused
+                              ? Icons.play_arrow
+                              : Icons.pause,
+                        ),
+                        onPressed: () {
+                          if (state.status == GameStatus.paused) {
+                            _gameBloc.add(const GameResumed());
+                          } else {
+                            _gameBloc.add(const GamePaused());
+                          }
+                        },
                       ),
-                      onPressed: () {
-                        if (state.status == GameStatus.paused) {
-                          _gameBloc.add(const GameResumed());
-                        } else {
-                          _gameBloc.add(const GamePaused());
-                        }
-                      },
-                    ),
-                ],
+                  ],
+                ),
+                body:
+                    state.status == GameStatus.paused
+                        ? _buildPausedScreen(context)
+                        : _buildGameContent(context, state),
               ),
-              body: state.status == GameStatus.paused
-                  ? _buildPausedScreen(context)
-                  : _buildGameContent(context, state),
             ),
           );
         },
@@ -137,50 +142,55 @@ class _GameScreenState extends State<GameScreen> {
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            // Game stats
-            GameStats(
-              score: state.score,
-              level: state.level,
-              correctAnswers: state.correctAnswers,
-              totalProblems: state.totalProblems,
-            ),
-            const SizedBox(height: 16),
-            
-            // Timer
-            CountdownTimer(
-              timeLeft: state.timeLeft,
-              totalTime: state.timePerProblem,
-            ),
-            const SizedBox(height: 24),
-            
-            // Problem card
-            if (state.currentProblem != null)
-              ProblemCard(
-                problem: state.currentProblem!,
-                showResult: _showFeedback,
-                isCorrect: _isAnswerCorrect,
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              // Game stats
+              GameStats(
+                score: state.score,
+                level: state.level,
+                correctAnswers: state.correctAnswers,
+                totalProblems: state.totalProblems,
               ),
-            
-            const SizedBox(height: 24),
-            
-            // Answer input
-            if (!_showFeedback) _buildAnswerInput(context),
-            
-            const Spacer(),
-            
-            // End game button
-            ElevatedButton(
-              onPressed: () {
-                _gameBloc.add(const GameEnded());
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
+              const SizedBox(height: 16),
+
+              // Timer
+              CountdownTimer(
+                timeLeft: state.timeLeft,
+                totalTime: state.timePerProblem,
               ),
-              child: const Text('End Game'),
-            ),
-          ],
+              const SizedBox(height: 24),
+
+              // Problem card
+              if (state.currentProblem != null)
+                ProblemCard(
+                  problem: state.currentProblem!,
+                  showResult: _showFeedback,
+                  isCorrect: _isAnswerCorrect,
+                ),
+
+              const SizedBox(height: 24),
+
+              // Answer input
+              if (!_showFeedback) _buildAnswerInput(context),
+
+              // Replace Spacer with SizedBox to ensure buttons aren't pushed off the screen
+              const SizedBox(height: 40),
+
+              // End game button
+              ElevatedButton(
+                onPressed: () {
+                  _gameBloc.add(const GameEnded());
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                child: const Text('End Game'),
+              ),
+              // Add padding at the bottom to keep content away from keyboard
+              SizedBox(
+                height: MediaQuery.of(context).viewInsets.bottom > 0 ? 120 : 20,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -194,11 +204,12 @@ class _GameScreenState extends State<GameScreen> {
           keyboardType: TextInputType.number,
           textAlign: TextAlign.center,
           style: const TextStyle(fontSize: 24),
+          autofocus: true, // Automatically focus the field when shown
           decoration: InputDecoration(
             hintText: 'Enter your answer',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            // Add error handling in decoration
+            errorMaxLines: 2,
           ),
           onSubmitted: (_) => _submitAnswer(),
         ),
@@ -212,10 +223,7 @@ class _GameScreenState extends State<GameScreen> {
             ),
             child: const Text(
               'Submit Answer',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
           ),
         ),
@@ -228,31 +236,18 @@ class _GameScreenState extends State<GameScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(
-            Icons.pause_circle_filled,
-            size: 80,
-            color: Colors.grey,
-          ),
+          const Icon(Icons.pause_circle_filled, size: 80, color: Colors.grey),
           const SizedBox(height: 24),
-          Text(
-            'Game Paused',
-            style: Theme.of(context).textTheme.displayMedium,
-          ),
+          Text('Game Paused', style: Theme.of(context).textTheme.displayMedium),
           const SizedBox(height: 40),
           ElevatedButton(
             onPressed: () {
               _gameBloc.add(const GameResumed());
             },
             style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 32,
-                vertical: 16,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
             ),
-            child: const Text(
-              'Resume Game',
-              style: TextStyle(fontSize: 18),
-            ),
+            child: const Text('Resume Game', style: TextStyle(fontSize: 18)),
           ),
           const SizedBox(height: 16),
           TextButton(
@@ -268,26 +263,42 @@ class _GameScreenState extends State<GameScreen> {
 
   void _submitAnswer() {
     final answerText = _answerController.text.trim();
-    if (answerText.isEmpty) return;
-    
+    if (answerText.isEmpty) {
+      // Show user feedback for empty answers
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter an answer'),
+          duration: Duration(seconds: 1),
+        ),
+      );
+      return;
+    }
+
     try {
       final answer = int.parse(answerText);
       final currentProblem = _gameBloc.state.currentProblem;
-      
+
       if (currentProblem != null) {
         setState(() {
           _showFeedback = true;
           _isAnswerCorrect = currentProblem.checkAnswer(answer);
         });
-        
+
         _gameBloc.add(AnswerSubmitted(answer));
         _answerController.clear();
-        
+
+        // Hide keyboard after submitting
+        FocusScope.of(context).unfocus();
+
         // Hide feedback after delay
         Future.delayed(const Duration(seconds: 2), () {
           if (mounted) {
             setState(() {
               _showFeedback = false;
+              // Re-focus on the text field after feedback
+              if (_gameBloc.state.status == GameStatus.running) {
+                FocusScope.of(context).requestFocus(FocusNode());
+              }
             });
           }
         });
@@ -305,26 +316,28 @@ class _GameScreenState extends State<GameScreen> {
 
   Future<bool> _showExitConfirmationDialog(BuildContext context) async {
     return await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('End Game?'),
-        content: const Text(
-          'Are you sure you want to end the game? Your progress will be saved.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
-            child: const Text('End Game'),
-          ),
-        ],
-      ),
-    ) ?? false;
+          context: context,
+          builder:
+              (context) => AlertDialog(
+                title: const Text('End Game?'),
+                content: const Text(
+                  'Are you sure you want to end the game? Your progress will be saved.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text('Cancel'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                    ),
+                    child: const Text('End Game'),
+                  ),
+                ],
+              ),
+        ) ??
+        false;
   }
-} 
+}
